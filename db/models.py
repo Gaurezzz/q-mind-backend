@@ -1,6 +1,7 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, Float, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
+from typing import Optional
 
 Base = declarative_base()
 
@@ -13,12 +14,12 @@ class User(Base):
     """
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=False)
-    first_name = Column(String, nullable=True)
-    last_name = Column(String, nullable=True)
-    hashed_password = Column(String, nullable=False)
-    labels = relationship("Label", back_populates="owner")
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    first_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    last_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    hashed_password: Mapped[str] = mapped_column(String, nullable=False)
+    labels: Mapped[list["Label"]] = relationship("Label", back_populates="owner")
 
 class Material(Base):
     """
@@ -28,17 +29,17 @@ class Material(Base):
     """
     __tablename__ = "materials"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    name = Column(String, unique=True, index=True, nullable=False)
-    Eg_0K_eV = Column(Float, nullable=False)
-    Alpha_evK = Column(Float, nullable=False)
-    Beta_K = Column(Float, nullable=False)
-    me_eff = Column(Float, nullable=False)
-    mh_eff = Column(Float, nullable=False)
-    epsilon_r = Column(Float, nullable=False)
-    description = Column(String, nullable=True)
-    labels = relationship(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    Eg_0K_eV: Mapped[float] = mapped_column(Float, nullable=False)
+    Alpha_evK: Mapped[float] = mapped_column(Float, nullable=False)
+    Beta_K: Mapped[float] = mapped_column(Float, nullable=False)
+    me_eff: Mapped[float] = mapped_column(Float, nullable=False)
+    mh_eff: Mapped[float] = mapped_column(Float, nullable=False)
+    epsilon_r: Mapped[float] = mapped_column(Float, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    labels: Mapped[list["Label"]] = relationship(
         "Label",
         secondary="material_labels",
         back_populates="materials"
@@ -52,13 +53,13 @@ class Label(Base):
     """
     __tablename__ = "labels"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    name = Column(String, nullable=False)
-    description = Column(String, nullable=True)
-    owner = relationship("User", back_populates="labels")
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    owner: Mapped["User"] = relationship("User", back_populates="labels")
 
-    materials = relationship(
+    materials: Mapped[list["Material"]] = relationship(
         "Material",
         secondary="material_labels",
         back_populates="labels"
@@ -70,6 +71,6 @@ class MaterialLabel(Base):
     """
     __tablename__ = "material_labels"
 
-    id = Column(Integer, primary_key=True, index=True)
-    material_id = Column(Integer, ForeignKey("materials.id"), nullable=False)
-    label_id = Column(Integer, ForeignKey("labels.id"), nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    material_id: Mapped[int] = mapped_column(Integer, ForeignKey("materials.id"), nullable=False)
+    label_id: Mapped[int] = mapped_column(Integer, ForeignKey("labels.id"), nullable=False)

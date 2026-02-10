@@ -8,11 +8,14 @@ class Config(BaseSettings):
 
     Manages environment variables and connection string generation for different database types.
     """
-    DB_TYPE: str    
-    DB_NAME: str
-    DB_USER: str
-    DB_PASSWORD: str
-    DB_HOST: str
+    DB_TYPE: str = ""
+    DB_NAME: str = ""
+    DB_USER: str = ""
+    DB_PASSWORD: str = ""
+    DB_HOST: str = ""
+    SECRET_KEY: str = ""
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     model_config = SettingsConfigDict(env_file=".env")
 
@@ -36,3 +39,16 @@ db_config = Config()
 # Create SQLAlchemy engine instance
 engine = create_engine(url=db_config.DB_URL, echo=True, connect_args={"check_same_thread": False} if db_config.DB_TYPE == "sqlite" else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def get_db():
+    """
+    Dependency function to provide a database session.
+
+    Yields:
+        Session: A SQLAlchemy session for database operations.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

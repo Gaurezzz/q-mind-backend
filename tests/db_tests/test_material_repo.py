@@ -80,3 +80,41 @@ class TestMaterialRepository:
         material_repo.delete_material(db_session, mat.id)
         
         assert material_repo.get_material(db_session, mat.id) is None
+
+    def test_create_material_invalid_user(self, db_session):
+        """
+        Scenario: Create material with non-existent user_id.
+        Expected: Database raises foreign key violation.
+        """
+        with pytest.raises(Exception):
+            material_repo.create_material(db_session, MaterialCreate(
+                name="Invalid", user_id=99999, Eg_0K_eV=1, Alpha_evK=0, Beta_K=0, me_eff=1, mh_eff=1, epsilon_r=1
+            ))
+
+    def test_get_nonexistent_material(self, db_session):
+        """
+        Scenario: Retrieve non-existent material.
+        Expected: Returns None.
+        """
+        material = material_repo.get_material(db_session, 99999)
+        
+        assert material is None
+
+    def test_update_nonexistent_material(self, db_session, owner):
+        """
+        Scenario: Update non-existent material.
+        Expected: Returns None.
+        """
+        update_data = MaterialCreate(
+            name="Nonexistent", user_id=owner.id, Eg_0K_eV=1, Alpha_evK=0, Beta_K=0, me_eff=1, mh_eff=1, epsilon_r=1
+        )
+        result = material_repo.update_material(db_session, 99999, update_data)
+        
+        assert result is None
+
+    def test_delete_nonexistent_material(self, db_session):
+        """
+        Scenario: Delete non-existent material.
+        Expected: Operation completes without error.
+        """
+        material_repo.delete_material(db_session, 99999)

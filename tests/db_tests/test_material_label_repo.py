@@ -52,3 +52,39 @@ class TestMaterialLabelRepository:
         assert ml_repo.get_material_label(db_session, link.id) is None
         assert material_repo.get_material(db_session, material.id) is not None
         assert label_repo.get_label(db_session, label.id) is not None
+
+    def test_create_association_invalid_material(self, db_session, setup_entities):
+        """
+        Scenario: Create association with non-existent material_id.
+        Expected: Database raises foreign key violation.
+        """
+        _, label = setup_entities
+        
+        with pytest.raises(Exception):
+            ml_repo.create_material_label(db_session, MaterialLabelCreate(material_id=99999, label_id=label.id))
+
+    def test_create_association_invalid_label(self, db_session, setup_entities):
+        """
+        Scenario: Create association with non-existent label_id.
+        Expected: Database raises foreign key violation.
+        """
+        material, _ = setup_entities
+        
+        with pytest.raises(Exception):
+            ml_repo.create_material_label(db_session, MaterialLabelCreate(material_id=material.id, label_id=99999))
+
+    def test_get_nonexistent_association(self, db_session):
+        """
+        Scenario: Retrieve non-existent association.
+        Expected: Returns None.
+        """
+        result = ml_repo.get_material_label(db_session, 99999)
+        
+        assert result is None
+
+    def test_delete_nonexistent_association(self, db_session):
+        """
+        Scenario: Delete non-existent association.
+        Expected: Operation completes without error.
+        """
+        ml_repo.delete_material_label(db_session, 99999)

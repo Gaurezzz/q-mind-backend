@@ -69,3 +69,39 @@ class TestUserRepository:
         user_repo.delete_user(db_session, user.id)
         
         assert user_repo.get_user(db_session, user.id) is None
+
+    def test_create_user_duplicate_email(self, db_session):
+        """
+        Scenario: Create user with duplicate email.
+        Expected: Database raises an exception.
+        """
+        user_repo.create_user(db_session, UserCreate(email="dup@test.com", password="Pass1234!"))
+        
+        with pytest.raises(Exception):
+            user_repo.create_user(db_session, UserCreate(email="dup@test.com", password="Pass5678!"))
+
+    def test_get_nonexistent_user(self, db_session):
+        """
+        Scenario: Attempt to retrieve non-existent user.
+        Expected: Returns None.
+        """
+        user = user_repo.get_user(db_session, 99999)
+        
+        assert user is None
+
+    def test_update_nonexistent_user(self, db_session):
+        """
+        Scenario: Update non-existent user.
+        Expected: Returns None.
+        """
+        update_data = UserUpdate(password="NewPass123!")
+        result = user_repo.update_user(db_session, 99999, update_data)
+        
+        assert result is None
+
+    def test_delete_nonexistent_user(self, db_session):
+        """
+        Scenario: Delete non-existent user.
+        Expected: Operation completes without error.
+        """
+        user_repo.delete_user(db_session, 99999)

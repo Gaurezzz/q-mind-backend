@@ -7,7 +7,10 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
-def create_user(db: Session, user: schemas.user.UserCreate) -> schemas.user.UserRead:
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+def create_user(db: Session, user: schemas.user.UserCreate) -> models.User | None:
     """
     create_user: Creates a new user in the database with hashed password.
 
@@ -28,7 +31,7 @@ def create_user(db: Session, user: schemas.user.UserCreate) -> schemas.user.User
     db.refresh(db_user)
     return db_user
 
-def get_user(db: Session, user_id: int) -> schemas.user.UserRead | None:
+def get_user(db: Session, user_id: int) -> models.User | None:
     """
     get_user: Retrieves a user by ID.
 
@@ -39,9 +42,24 @@ def get_user(db: Session, user_id: int) -> schemas.user.UserRead | None:
     Returns:
         UserRead | None: The user if found, else None.
     """
-    return db.query(models.User).filter(models.User.id == user_id).first()
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    return db_user
 
-def get_users(db: Session, skip: int = 0, limit: int = 100) -> list[schemas.user.UserRead]:
+def get_email(db: Session, user_email: str) -> models.User | None:
+    """
+    get_email: Retrieves a user by their email
+
+    Args:
+        db (Session): Database session.
+        email (str): email of the user to retrieve.
+    
+    Returns:
+        UserRead | None: The user if found, else None.
+    """
+    db_user = db.query(models.User).filter(models.User.email == user_email).first()
+    return db_user
+
+def get_users(db: Session, skip: int = 0, limit: int = 100) -> list[models.User] | None:
     """
     get_users: Retrieves a list of users with pagination.
 
@@ -53,7 +71,8 @@ def get_users(db: Session, skip: int = 0, limit: int = 100) -> list[schemas.user
     Returns:
         list[UserRead]: List of users.
     """
-    return db.query(models.User).offset(skip).limit(limit).all()
+    users = db.query(models.User).offset(skip).limit(limit).all()
+    return users
 
 def delete_user(db: Session, user_id: int) -> None:
     """
@@ -69,7 +88,7 @@ def delete_user(db: Session, user_id: int) -> None:
         db.commit()
     return
 
-def update_user(db: Session, user_id: int, user: schemas.user.UserUpdate) -> schemas.user.UserRead | None:
+def update_user(db: Session, user_id: int, user: schemas.user.UserUpdate) -> models.User | None:
     """
     update_user: Updates an existing user's information, hashing password if changed.
 

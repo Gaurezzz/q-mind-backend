@@ -10,6 +10,7 @@ pyyaml>=6.0
 passlib[bcrypt]
 bcrypt<5.0.0
 pydantic
+pydantic-settings
 sqlalchemy
 python-dotenv
 email-validator

@@ -59,3 +59,37 @@ class TestLabelRepository:
         label_repo.delete_label(db_session, label.id)
         
         assert label_repo.get_label(db_session, label.id) is None
+
+    def test_create_label_invalid_user(self, db_session):
+        """
+        Scenario: Create label with non-existent user_id.
+        Expected: Database raises foreign key violation.
+        """
+        with pytest.raises(Exception):
+            label_repo.create_label(db_session, LabelCreate(name="Invalid", user_id=99999))
+
+    def test_get_nonexistent_label(self, db_session):
+        """
+        Scenario: Retrieve non-existent label.
+        Expected: Returns None.
+        """
+        label = label_repo.get_label(db_session, 99999)
+        
+        assert label is None
+
+    def test_update_nonexistent_label(self, db_session, owner):
+        """
+        Scenario: Update non-existent label.
+        Expected: Returns None.
+        """
+        update_data = LabelCreate(name="Nonexistent", user_id=owner.id)
+        result = label_repo.update_label(db_session, 99999, update_data)
+        
+        assert result is None
+
+    def test_delete_nonexistent_label(self, db_session):
+        """
+        Scenario: Delete non-existent label.
+        Expected: Operation completes without error.
+        """
+        label_repo.delete_label(db_session, 99999)
