@@ -19,9 +19,9 @@ class TestMaterialLabelRepository:
         
         mat = material_repo.create_material(db_session, MaterialCreate(
             name="Mat1", user_id=user.id, Eg_0K_eV=1, Alpha_evK=0.1, Beta_K=1, me_eff=1, mh_eff=1, epsilon_r=1
-        ))
+        ), user_id=user.id)
         
-        label = label_repo.create_label(db_session, LabelCreate(name="Lbl1", user_id=user.id))
+        label = label_repo.create_label(db_session, LabelCreate(name="Lbl1", user_id=user.id), user_id=user.id)
         
         return mat, label
 
@@ -50,8 +50,8 @@ class TestMaterialLabelRepository:
         ml_repo.delete_material_label(db_session, link.id)
         
         assert ml_repo.get_material_label(db_session, link.id) is None
-        assert material_repo.get_material(db_session, material.id) is not None
-        assert label_repo.get_label(db_session, label.id) is not None
+        assert material_repo.get_material(db_session, material.id, material.user_id) is not None
+        assert label_repo.get_label(db_session, label.id, label.user_id) is not None
 
     def test_create_association_invalid_material(self, db_session, setup_entities):
         """

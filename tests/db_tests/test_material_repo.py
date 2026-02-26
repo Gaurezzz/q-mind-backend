@@ -30,7 +30,7 @@ class TestMaterialRepository:
             epsilon_r=17.0
         )
         
-        material = material_repo.create_material(db_session, material_in)
+        material = material_repo.create_material(db_session, material_in, owner.id)
         
         assert material.id is not None
         assert material.name == "PbS"
@@ -43,9 +43,9 @@ class TestMaterialRepository:
         """
         mat = material_repo.create_material(db_session, MaterialCreate(
             name="CdSe", user_id=owner.id, Eg_0K_eV=1.74, Alpha_evK=0.0, Beta_K=0.0, me_eff=1.0, mh_eff=1.0, epsilon_r=10.0
-        ))
+        ), owner.id)
         
-        fetched = material_repo.get_material(db_session, mat.id)
+        fetched = material_repo.get_material(db_session, mat.id, owner.id)
         
         assert fetched.name == "CdSe"
 
@@ -56,14 +56,14 @@ class TestMaterialRepository:
         """
         mat = material_repo.create_material(db_session, MaterialCreate(
             name="Si", user_id=owner.id, Eg_0K_eV=1.1, Alpha_evK=0, Beta_K=0, me_eff=1, mh_eff=1, epsilon_r=11.9
-        ))
+        ), owner.id)
         
         update_data = MaterialCreate(
             name="Silicon",
             user_id=owner.id, 
             Eg_0K_eV=1.1, Alpha_evK=0, Beta_K=0, me_eff=1, mh_eff=1, epsilon_r=12.0
         )
-        updated = material_repo.update_material(db_session, mat.id, update_data)
+        updated = material_repo.update_material(db_session, mat.id, update_data, owner.id)
         
         assert updated.name == "Silicon"
         assert updated.epsilon_r == 12.0
@@ -75,11 +75,11 @@ class TestMaterialRepository:
         """
         mat = material_repo.create_material(db_session, MaterialCreate(
             name="ToDel", user_id=owner.id, Eg_0K_eV=1, Alpha_evK=0, Beta_K=0, me_eff=1, mh_eff=1, epsilon_r=1
-        ))
+        ), owner.id)
         
-        material_repo.delete_material(db_session, mat.id)
+        material_repo.delete_material(db_session, mat.id, owner.id)
         
-        assert material_repo.get_material(db_session, mat.id) is None
+        assert material_repo.get_material(db_session, mat.id, owner.id) is None
 
     def test_create_material_invalid_user(self, db_session):
         """
@@ -89,14 +89,14 @@ class TestMaterialRepository:
         with pytest.raises(Exception):
             material_repo.create_material(db_session, MaterialCreate(
                 name="Invalid", user_id=99999, Eg_0K_eV=1, Alpha_evK=0, Beta_K=0, me_eff=1, mh_eff=1, epsilon_r=1
-            ))
+            ), 99999)
 
-    def test_get_nonexistent_material(self, db_session):
+    def test_get_nonexistent_material(self, db_session, owner):
         """
         Scenario: Retrieve non-existent material.
         Expected: Returns None.
         """
-        material = material_repo.get_material(db_session, 99999)
+        material = material_repo.get_material(db_session, 99999, owner.id)
         
         assert material is None
 
@@ -108,13 +108,13 @@ class TestMaterialRepository:
         update_data = MaterialCreate(
             name="Nonexistent", user_id=owner.id, Eg_0K_eV=1, Alpha_evK=0, Beta_K=0, me_eff=1, mh_eff=1, epsilon_r=1
         )
-        result = material_repo.update_material(db_session, 99999, update_data)
+        result = material_repo.update_material(db_session, 99999, update_data, owner.id)
         
         assert result is None
 
-    def test_delete_nonexistent_material(self, db_session):
+    def test_delete_nonexistent_material(self, db_session, owner):
         """
         Scenario: Delete non-existent material.
         Expected: Operation completes without error.
         """
-        material_repo.delete_material(db_session, 99999)
+        material_repo.delete_material(db_session, 99999, owner.id)

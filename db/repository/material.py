@@ -12,7 +12,7 @@ def create_material(db: Session, material: schemas.material.MaterialCreate, user
     Returns:
         models.Material: The created material.
     """
-    db_material = models.Material(**material.model_dump(), user_id=user_id)
+    db_material = models.Material(**material.model_dump(exclude={'user_id'}), user_id=user_id)
     db.add(db_material)
     db.commit()
     db.refresh(db_material)

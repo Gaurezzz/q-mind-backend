@@ -12,7 +12,7 @@ def create_label(db: Session, label: schemas.label.LabelCreate, user_id: int) ->
     Returns:
         models.Label: The created label.
     """
-    db_label = models.Label(**label.model_dump(), user_id=user_id)
+    db_label = models.Label(**label.model_dump(exclude={'user_id'}), user_id=user_id)
     db.add(db_label)
     db.commit()
     db.refresh(db_label)
