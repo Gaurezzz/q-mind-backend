@@ -85,7 +85,7 @@ class BrusEngine(Cell):
 
         # Gaussian absorption profile: Models size distribution effects
         absorption_coefficient = self.max_absorption_coefficient * ms.numpy.exp(
-            -ops.pow((wavelengths - wavelength_peak), 2) / (2 * ops.pow(self.sigma, 2))
+            -ops.pow((wavelengths - wavelength_peak), 2) / (2 * ops.pow(self.sigma, 2)) #type: ignore
         )
 
-        return absorption_coefficient, e_qd
+        return absorption_coefficient, e_qd #type: ignore

@@ -54,8 +54,14 @@ class SolarOptimizationManager:
         Executes a complete evolutionary optimization study based on user-defined parameters.
         
         Args:
-            user_params (dict): Configuration including materials, population size, 
-                                crossover/mutation rates, and spectral conditions.
+            user_params (dict): Configuration dictionary with the following keys:
+                - 'materials'(list[str]): Material names from the CSV catalog. e.g. ['CdSe', 'PbS', 'CdS', 'GaAs']
+                - 'pop_size'(int): Population size for the genetic algorithm.
+                - 'alpha'(float): Arithmetic crossover weight [0.0 - 1.0].
+                - 'mutation'(float): Gaussian mutation strength [0.0 - 1.0].
+                - 'iterations'(int): Number of generations to evolve.
+                - 'temp'(ms.Tensor float32) : Temperature in Kelvin. e.g. ms.Tensor([300.0], ms.float32)
+                - 'wavelength' (ms.Tensor float32) : Wavelength range in nm (AM1.5G: 280-2000).e.g. ms.Tensor(np.arange(280, 2000, 20), ms.float32)
                                 
         Returns:
             tuple: (fitness_history, optimal_radii_vector)
@@ -72,8 +78,9 @@ class SolarOptimizationManager:
 
         results = []
         for i in range(user_params['iterations']):
-            fitness, winner = optimizer(user_params['temp'], user_params['wavelength'])
+            fitness, winner, absorption_tensor = optimizer(user_params['temp'], user_params['wavelength']) # type: ignore
             
-            results.append(float(fitness.asnumpy()))
+            results.append(float(fitness.asnumpy())) # type: ignore
         
-        return results, winner
+        absorption_spectrum = absorption_tensor.asnumpy().tolist() # type: ignore
+        return results, winner, absorption_spectrum

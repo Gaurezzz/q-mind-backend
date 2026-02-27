@@ -4,6 +4,7 @@ from mindspore import ops, Tensor, dtype
 from physics.SolarPerformanceEvaluator import SolarPerformanceEvaluator
 from physics.BrusEngine import BrusEngine
 import mindspore as ms
+from typing import List, Tuple
 
 class GeneticSolarOptimizer(Cell):
     """
@@ -34,7 +35,7 @@ class GeneticSolarOptimizer(Cell):
             dtype=ms.float32
         ), name="population")
 
-    def construct(self, temperature, wavelength) -> Tensor:
+    def construct(self, temperature, wavelength) -> Tuple[Tensor,Tensor, Tensor]:
         absorption_list = []
         e_qd_list = []
 
@@ -96,4 +97,4 @@ class GeneticSolarOptimizer(Cell):
         new_population = ops.concat((offspring, winner_radii.expand_dims(axis=0), parents_radii[:survivors_count]))
         ops.assign(self.population, new_population)
 
-        return fitness_batch[winner], winner_radii
+        return fitness_batch[winner], winner_radii, absortion_batch[winner] #type: ignore

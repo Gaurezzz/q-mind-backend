@@ -20,8 +20,7 @@ class SolarPerformanceEvaluator(Cell):
         Initializes the physical constants and loads the solar spectrum.
 
         Args:
-            kappa (float): Penalty coefficient for current mismatch in the fitness function.
-                           Controls how strictly the algorithm enforces current matching.
+            kappa (float): Penalty coefficient for current mismatch in the fitness function. Controls how strictly the algorithm enforces current matching.
         """
         super().__init__()
 
@@ -29,6 +28,7 @@ class SolarPerformanceEvaluator(Cell):
         self.ENERGY_CONST = 1.9864e-16      # hc in J*m
         self.ELECTRON_CHARGE = 1.60218e-19  # q in Coulombs
         self.FF = 0.75                      # Fill Factor (estimated standard)
+        self.thickness = 100e-9             # Active layer thickness in meters (100 nm)
         self.kappa = kappa                  # Optimization penalty weight
 
         # --- Load AM1.5G Standard Spectrum ---
@@ -88,10 +88,8 @@ class SolarPerformanceEvaluator(Cell):
         Computes the fitness score for a batch of solar cell individuals simultaneously.
 
         Args:
-            absorption_coefficient (Tensor): Shape (Batch, Layers, Wavelengths). 
-                                             The spectral absorption profile for each layer.
-            e_qd (Tensor): Shape (Batch, Layers). 
-                           Quantum Dot Bandgaps in eV for each layer.
+            absorption_coefficient (Tensor): Shape (Batch, Layers, Wavelengths). The spectral absorption profile for each layer.
+            e_qd (Tensor): Shape (Batch, Layers). Quantum Dot Bandgaps in eV for each layer.
 
         Returns:
             Tensor: Shape (Batch,). The calculated fitness score for each individual in the population.
@@ -102,7 +100,7 @@ class SolarPerformanceEvaluator(Cell):
         # Result shape: (Batch, Layers)
         photon_flux_interp = self._interpolate_spectrum(wavelengths)
         delta = wavelengths[1] - wavelengths[0]
-        j_layers = self.ELECTRON_CHARGE * (photon_flux_interp * absorption_coefficient * delta).sum(axis=-1)
+        j_layers = self.ELECTRON_CHARGE * (photon_flux_interp * absorption_coefficient * delta*self.thickness).sum(axis=-1)
 
         # Calculate Open-Circuit Voltage (V_oc)
         # Estimation: V_oc approx (E_g / q) - 0.4V loss.
@@ -127,14 +125,17 @@ class SolarPerformanceEvaluator(Cell):
 
         # Calculate Current Mismatch Penalty
         # We penalize designs where layers generate vastly different currents.
-        # Uses vector slicing to compute sum(|J_i - J_{i+1}|) across layers.
+        # The penalty is proportional to the sum of absolute differences from the minimum current, normalized by the minimum current.
+        
+        j_min = j_layers.min(axis=1, keepdims=True)
+
         if len(j_layers.shape) > 1 and j_layers.shape[1] > 1:
-            diff_j = ops.abs(j_layers[:, 1:] - j_layers[:, :-1]).sum(axis=1)
+            diff_j = ops.abs(j_layers[:, 1:] - j_min).sum(axis=1)
         else:
             diff_j = ops.zeros(j_layers.shape[0], mstype.float32)
         
         # Final Fitness Calculation
         # Fitness = Efficiency - (Penalty * Mismatch)
-        fitness = efficiency - self.kappa * diff_j
+        fitness = efficiency - (self.kappa * diff_j) / j_min.squeeze()
 
         return fitness
