@@ -138,4 +138,5 @@ class SolarPerformanceEvaluator(Cell):
         # Fitness = Efficiency - (Penalty * Mismatch)
         fitness = efficiency - (self.kappa * diff_j) / j_min.squeeze()
 
-        return fitness
+        # Return both the penalized fitness (used by GA) and the raw PCE (for reporting)
+        return fitness, efficiency

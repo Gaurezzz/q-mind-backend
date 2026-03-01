@@ -64,7 +64,7 @@ class SolarOptimizationManager:
                 - 'wavelength' (ms.Tensor float32) : Wavelength range in nm (AM1.5G: 280-2000).e.g. ms.Tensor(np.arange(280, 2000, 20), ms.float32)
                                 
         Returns:
-            tuple: (fitness_history, optimal_radii_vector)
+            tuple: (fitness_history, pce_history, optimal_radii_vector, absorption_spectrum)
         """
         selected_engines = [self.get_engine(m) for m in user_params['materials']]
 
@@ -76,11 +76,13 @@ class SolarOptimizationManager:
             mutation_strength=user_params['mutation']
         )
 
-        results = []
+        fitness_results = []
+        pce_results = []
         for i in range(user_params['iterations']):
-            fitness, winner, absorption_tensor = optimizer(user_params['temp'], user_params['wavelength']) # type: ignore
+            fitness, pce, winner, absorption_tensor = optimizer(user_params['temp'], user_params['wavelength']) # type: ignore
             
-            results.append(float(fitness.asnumpy())) # type: ignore
+            fitness_results.append(float(fitness.asnumpy())) # type: ignore
+            pce_results.append(float(pce.asnumpy())) # type: ignore
         
         absorption_spectrum = absorption_tensor.asnumpy().tolist() # type: ignore
-        return results, winner, absorption_spectrum
+        return fitness_results, pce_results, winner, absorption_spectrum

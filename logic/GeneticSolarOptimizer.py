@@ -35,7 +35,7 @@ class GeneticSolarOptimizer(Cell):
             dtype=ms.float32
         ), name="population")
 
-    def construct(self, temperature, wavelength) -> Tuple[Tensor,Tensor, Tensor]:
+    def construct(self, temperature, wavelength) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         absorption_list = []
         e_qd_list = []
 
@@ -58,7 +58,7 @@ class GeneticSolarOptimizer(Cell):
         e_qd_batch = ops.stack(e_qd_list, axis=1).squeeze()
 
         # Fitness Evaluation: PCE - kappa * Sum(|Ji - Ji+1|)
-        fitness_batch = self.evaluator(
+        fitness_batch, efficiency_batch = self.evaluator(
             absorption_coefficient = absortion_batch,
             e_qd = e_qd_batch,
             wavelengths = wavelength
@@ -97,4 +97,4 @@ class GeneticSolarOptimizer(Cell):
         new_population = ops.concat((offspring, winner_radii.expand_dims(axis=0), parents_radii[:survivors_count]))
         ops.assign(self.population, new_population)
 
-        return fitness_batch[winner], winner_radii, absortion_batch[winner] #type: ignore
+        return fitness_batch[winner], efficiency_batch[winner], winner_radii, absortion_batch[winner] #type: ignore

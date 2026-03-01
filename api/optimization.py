@@ -44,6 +44,20 @@ def run_optimization(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Unknown materials: {invalid}. Available: {available_materials}"
         )
+    
+    if not request.wavelength_input_csv:
+        wavelengths = np.arange(
+            request.wavelength_left_bound,
+            request.wavelength_right_bound,
+            request.wavelength_step
+        )
+    else:
+        raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="CSV wavelength input is not yet supported. Please use the automatic range mode."
+    )
+
+    #TODO:Implement wavelength input from CSV in the future, currently we only support custom wavelength grids defined by left_bound, right_bound, and step size.
 
     user_params = {
         'materials':   request.materials,
@@ -52,22 +66,22 @@ def run_optimization(
         'mutation':    request.mutation_strength,
         'iterations':  request.max_iterations,
         'temp':        ms.Tensor([request.operating_temperature], ms.float32),
-        'wavelength':  ms.Tensor(np.arange(280, 2000, 20, dtype=np.float32), ms.float32),
+        'wavelength':  ms.Tensor(wavelengths, ms.float32),
     }
 
     start = time.perf_counter()
-    fitness_history, best_radii, absorption_spectrum = manager.run_study(user_params)  # type: ignore
+    fitness_history, pce_history, best_radii, absorption_spectrum = manager.run_study(user_params)  # type: ignore
     elapsed_ms = (time.perf_counter() - start) * 1000
 
     optimal_radii = best_radii.asnumpy().tolist() # type: ignore
-    projected_pce = fitness_history[-1] if fitness_history else 0.0
+    projected_pce = pce_history[-1] if pce_history else 0.0
 
     return OptimizationResponse(
-        simulation_id=str(uuid.uuid4()),
         status="COMPLETED",
         optimal_radii_nm=optimal_radii,
         projected_pce=projected_pce,
         fitness_history=fitness_history,
+        pce_history=pce_history,
         absorption_spectrum=absorption_spectrum,
         computation_time_ms=round(elapsed_ms, 2)
     )
