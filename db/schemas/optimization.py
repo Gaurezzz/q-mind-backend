@@ -48,6 +48,13 @@ class OptimizationRequest(BaseModel):
         description="Standard deviation for Gaussian mutation."
     )
 
+    kappa: float = Field(
+        0.5,
+        ge=0.0,
+        le=1.0,
+        description="Penalty coefficient for current mismatch in the fitness function. Higher values increase the penalty for current mismatch in tandem architectures, driving the optimization towards better current matching across layers."
+    )
+
     wavelength_input_csv: bool = Field(
         False,
         description="If true, the optimization will use a custom wavelength grid provided in the request instead of the default AM1.5G spectrum."
@@ -74,6 +81,7 @@ class OptimizationRequest(BaseModel):
         description="Step size for the wavelength grid in nm (used if wavelength_input_csv is false)."
     )
 
+
     @model_validator(mode="after")
     def check_wavelength_requirements(self) -> 'OptimizationRequest':
 
@@ -94,9 +102,44 @@ class OptimizationResponse(BaseModel):
     Schema for the result returned to the researcher.
     """
     status: str = "COMPLETED"
-    optimal_radii_nm: List[float]
-    absorption_spectrum: List[List]
-    projected_pce: float
-    fitness_history: List[float]
-    pce_history: List[float]
-    computation_time_ms: float
+    optimal_radii_nm: List[float] = Field(
+        description="Optimal QD radii for each layer in nanometers. Shape: (num_layers,)",
+    )
+    projected_pce: float = Field(
+        description="Projected Power Conversion Efficiency (PCE) of the optimal configuration.",
+    )
+    fitness_history: List[float] = Field(
+        description="History of fitness values across generations. Shape: (iterations,)",
+    )
+    pce_history: List[float] = Field(
+        description="History of projected PCE values across generations. Shape: (iterations,)",
+    )
+    avg_fitness_history: List[float] = Field(
+        description="History of mean population fitness values across generations. Shape: (iterations,)",
+    )
+    computation_time_ms: float = Field(
+        description="Total computation time for the optimization process in milliseconds.",
+    )
+    materials: List[str] = Field(
+        description="List of materials used in the optimization."
+    )
+    bandgaps_eV: List[float] = Field(
+        description="Bandgap energies in eV for the optimal configuration."
+    )
+    wavelengths_nm: List[float] = Field(
+        description="Wavelength grid used in the optimization in nm."
+    )
+    absorption_spectrum: List[List[float]] = Field(
+        description="Absorption spectrum of the optimal configuration. Shape: (num_layers, num_wavelengths)."
+    )
+    current_mismatch_index: float = Field(
+        description="Normalized current mismatch index for tandem architectures. A value of 0 indicates perfect current matching across all layers. Higher values represent energy losses due to the 'bottleneck effect,' where the layer with the lowest photocurrent limits the total device performance."
+    )
+    photon_harvesting_efficiency: List[float] = Field(
+        description="Photon harvesting efficiency for each layer at the optimal configuration. Shape: (num_layers,)"
+    )
+    generations_to_convergence: int = Field(
+        description="Number of generations required to reach the optimal solution or convergence criteria."
+    )
+
+

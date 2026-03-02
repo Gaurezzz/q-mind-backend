@@ -92,7 +92,10 @@ class SolarPerformanceEvaluator(Cell):
             e_qd (Tensor): Shape (Batch, Layers). Quantum Dot Bandgaps in eV for each layer.
 
         Returns:
-            Tensor: Shape (Batch,). The calculated fitness score for each individual in the population.
+            Tuple[Tensor, Tensor, Tensor]:
+                - fitness     Shape (Batch,): Penalized score driving the GA (PCE - κ·CMI).
+                - efficiency  Shape (Batch,): Raw PCE without penalty, for reporting.
+                - cmi_batch   Shape (Batch,): Normalized current mismatch index per individual.
         """
         
         # Calculate Short-Circuit Current (J_sc) for every layer
@@ -109,7 +112,7 @@ class SolarPerformanceEvaluator(Cell):
         if len(e_qd.shape) > 1 and e_qd.shape[1] > 1:
             v_oc_total = v_layers.sum(axis=1)
         else:
-            v_oc_total = v_layers.squeeze()
+            v_oc_total = v_layers[:, 0]
 
         # Apply Current Matching Condition
         # In a series connection, the total current is limited by the layer generating the least current.
@@ -117,7 +120,7 @@ class SolarPerformanceEvaluator(Cell):
         if len(j_layers.shape) > 1 and j_layers.shape[1] > 1:
             j_sc_limit = j_layers.min(axis=1)
         else:
-            j_sc_limit = j_layers.squeeze()
+            j_sc_limit = j_layers[:, 0] 
 
         # Calculate Power Conversion Efficiency (PCE)
         # Eta = (J_sc * V_oc * FF) / P_in
@@ -136,7 +139,8 @@ class SolarPerformanceEvaluator(Cell):
         
         # Final Fitness Calculation
         # Fitness = Efficiency - (Penalty * Mismatch)
-        fitness = efficiency - (self.kappa * diff_j) / j_min.squeeze()
+        cmi_batch = (self.kappa * diff_j) / (j_min[:, 0] + 1e-30) # Avoid division by zero
+        fitness = efficiency - cmi_batch
 
-        # Return both the penalized fitness (used by GA) and the raw PCE (for reporting)
-        return fitness, efficiency
+        # Return penalized fitness (drives GA), raw PCE, and CMI (both for reporting)
+        return fitness, efficiency, cmi_batch
