@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 import mindspore as ms
-from physics.BrusEngine import BrusEngine
+from modelarts_worker.physics.BrusEngine import BrusEngine
 
 def load_material_data():
     """Load material properties from CSV file."""

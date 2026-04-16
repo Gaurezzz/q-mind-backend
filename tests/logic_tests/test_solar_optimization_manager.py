@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import mindspore as ms
-from logic.SolarOptimizationManager import SolarOptimizationManager
+from modelarts_worker.logic.SolarOptimizationManager import SolarOptimizationManager
 
 
 class TestSolarOptimizationManager:
@@ -9,7 +9,7 @@ class TestSolarOptimizationManager:
     @pytest.fixture
     def manager(self):
         """Creates a manager instance with the materials database."""
-        return SolarOptimizationManager('db/materials.csv')
+        return SolarOptimizationManager('db/materials.csv', kappa=0.5)
     
     def test_catalog_loading(self, manager):
         """Validates that the materials catalog is loaded correctly from CSV."""
@@ -36,7 +36,7 @@ class TestSolarOptimizationManager:
         engine = manager.get_engine('CdSe')
         
         # Verify engine is a BrusEngine instance
-        from physics.BrusEngine import BrusEngine
+        from modelarts_worker.physics.BrusEngine import BrusEngine
         assert isinstance(engine, BrusEngine), "Should return BrusEngine instance"
         
         # Verify engine properties match catalog values
@@ -84,19 +84,28 @@ class TestSolarOptimizationManager:
             'wavelength': ms.Tensor(np.arange(280, 2000, 20), ms.float32)
         }
         
-        fitness_history, best_radii = manager.run_study(params)
+        fitness_history, pce_history, avg_fitness_history, best_radii, absorption_spectrum, bandgaps_eV, champion_cmi, phe = manager.run_study(params)
         
         # Validate results
         assert len(fitness_history) == 5, "Should have 5 fitness values"
+        assert len(pce_history) == 5, "Should have 5 pce values"
+        assert len(avg_fitness_history) == 5, "Should have 5 avg-fitness values"
         assert all(isinstance(f, float) for f in fitness_history), "Fitness should be floats"
         assert not any(np.isnan(f) for f in fitness_history), "No fitness should be NaN"
+        assert all(pce >= fit - 1e-5 for pce, fit in zip(pce_history, fitness_history)), \
+            "PCE should be >= fitness each generation"
+        assert isinstance(champion_cmi, float) and champion_cmi == 0.0, \
+            "Single-layer CMI should be 0.0"
+        assert len(phe) == 1, "Single layer should have 1 PHE value"
+        assert 0.0 <= phe[0] <= 1.0, "PHE should be in [0, 1]"
+        assert len(bandgaps_eV) == 1, "Single layer should have 1 bandgap"
         
         # Best radii shape
         best_radii_np = best_radii.asnumpy()
         assert best_radii_np.shape == (1,), "Single layer should have 1 radius"
         assert 2.0 <= best_radii_np[0] <= 10.0, "Radius should be within bounds"
         
-        print(f"Single-layer study: best fitness={fitness_history[-1]:.4f}, radius={best_radii_np[0]:.2f} nm")
+        print(f"Single-layer study: best fitness={fitness_history[-1]:.4f}, pce={pce_history[-1]:.4f}, cmi={champion_cmi:.4f}, radius={best_radii_np[0]:.2f} nm")
     
     def test_run_study_tandem(self, manager):
         """Validates optimization for tandem (2-layer) solar cell."""
@@ -110,17 +119,22 @@ class TestSolarOptimizationManager:
             'wavelength': ms.Tensor(np.arange(280, 2000, 20), ms.float32)
         }
         
-        fitness_history, best_radii = manager.run_study(params)
+        fitness_history, pce_history, avg_fitness_history, best_radii, absorption_spectrum, bandgaps_eV, champion_cmi, phe = manager.run_study(params)
         
         # Validate results
         assert len(fitness_history) == 3, "Should have 3 fitness values"
+        assert len(pce_history) == 3, "Should have 3 pce values"
+        assert len(avg_fitness_history) == 3, "Should have 3 avg-fitness values"
         
         # Best radii shape
         best_radii_np = best_radii.asnumpy()
         assert best_radii_np.shape == (2,), "Tandem should have 2 radii"
         assert all(2.0 <= r <= 10.0 for r in best_radii_np), "All radii should be within bounds"
+        assert champion_cmi >= 0.0, "CMI must be non-negative"
+        assert len(phe) == 2, "Tandem should have 2 PHE values"
+        assert len(bandgaps_eV) == 2, "Tandem should have 2 bandgap values"
         
-        print(f"Tandem study: fitness={fitness_history[-1]:.4f}, radii={best_radii_np}")
+        print(f"Tandem study: fitness={fitness_history[-1]:.4f}, pce={pce_history[-1]:.4f}, cmi={champion_cmi:.4f}, radii={best_radii_np}")
     
     def test_run_study_multi_layer(self, manager):
         """Validates optimization for multi-junction (3-layer) cell."""
@@ -134,17 +148,19 @@ class TestSolarOptimizationManager:
             'wavelength': ms.Tensor(np.arange(280, 2000, 20), ms.float32)
         }
         
-        fitness_history, best_radii = manager.run_study(params)
+        fitness_history, pce_history, avg_fitness_history, best_radii, absorption_spectrum, bandgaps_eV, champion_cmi, phe = manager.run_study(params)
         
         # Validate results
         best_radii_np = best_radii.asnumpy()
         assert best_radii_np.shape == (3,), "3-layer should have 3 radii"
         assert len(fitness_history) == 3, "Should have 3 iterations"
+        assert len(bandgaps_eV) == 3, "Should have 3 bandgap values"
+        assert len(phe) == 3, "Should have 3 PHE values"
         
         # Engines should be cached for all materials
         assert len(manager.engines_cache) == 3, "All 3 engines should be cached"
         
-        print(f"Multi-layer study: {len(params['materials'])} layers, radii={best_radii_np}")
+        print(f"Multi-layer study: {len(params['materials'])} layers, radii={best_radii_np}, bandgaps={bandgaps_eV}")
     
     def test_fitness_progression(self, manager):
         """Validates that optimization shows improvement or stability over iterations."""
@@ -158,7 +174,7 @@ class TestSolarOptimizationManager:
             'wavelength': ms.Tensor(np.arange(280, 2000, 20), ms.float32)
         }
         
-        fitness_history, _ = manager.run_study(params)
+        fitness_history, pce_history, _, _, _, _, _, _ = manager.run_study(params)
         
         # Check general trend (allowing for some variance)
         initial_fitness = np.mean(fitness_history[:3])
@@ -188,7 +204,7 @@ class TestSolarOptimizationManager:
                 'wavelength': wavelengths
             }
             
-            fitness_history, best_radii = manager.run_study(params)
+            fitness_history, _, _, best_radii, _, _, _, _ = manager.run_study(params)
             
             assert len(fitness_history) == 2, f"Pop size {pop_size} should work"
             assert best_radii.asnumpy().shape == (1,), f"Pop size {pop_size} should return valid radii"
@@ -211,15 +227,16 @@ class TestSolarOptimizationManager:
                 'wavelength': wavelengths
             }
             
-            fitness_history, best_radii = manager.run_study(params)
+            fitness_history, pce_history, _, best_radii, _, _, _, _ = manager.run_study(params)
             results[temp] = {
                 'fitness': fitness_history[-1],
+                'pce': pce_history[-1],
                 'radius': best_radii.asnumpy()[0]
             }
         
         print(f"Temperature effects:")
         for temp, data in results.items():
-            print(f"  T={temp}K: fitness={data['fitness']:.4f}, radius={data['radius']:.2f} nm")
+            print(f"  T={temp}K: fitness={data['fitness']:.4f}, pce={data['pce']:.4f}, radius={data['radius']:.2f} nm")
     
     def test_mutation_strength_effect(self, manager):
         """Validates that mutation strength affects exploration."""
@@ -236,7 +253,7 @@ class TestSolarOptimizationManager:
                 'wavelength': wavelengths
             }
             
-            fitness_history, _ = manager.run_study(params)
+            fitness_history, _, _, _, _, _, _, _ = manager.run_study(params)
             
             # Just verify it works with different mutation strengths
             assert len(fitness_history) == 3, f"Mutation {mutation} should work"

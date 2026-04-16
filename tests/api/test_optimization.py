@@ -7,6 +7,10 @@ MINIMAL_PARAMS = {
     "crossover_alpha": 0.5,
     "mutation_strength": 0.1,
     "operating_temperature": 300.0,
+    "wavelength_input_csv": False,
+    "wavelength_left_bound": 280.0,
+    "wavelength_right_bound": 860.0,
+    "wavelength_step": 20.0,
 }
 
 
@@ -28,9 +32,14 @@ class TestOptimizationEndpoint:
         assert data["status"] == "COMPLETED"
         assert len(data["optimal_radii_nm"]) == 1
         assert len(data["fitness_history"]) == MINIMAL_PARAMS["max_iterations"]
+        assert len(data["pce_history"]) == MINIMAL_PARAMS["max_iterations"]
         assert 2.0 <= data["optimal_radii_nm"][0] <= 10.0
-        assert "simulation_id" in data
         assert data["computation_time_ms"] >= 0
+        assert len(data["bandgaps_eV"]) == 1
+        assert len(data["photon_harvesting_efficiency"]) == 1
+        assert 0.0 <= data["photon_harvesting_efficiency"][0] <= 1.0
+        assert data["current_mismatch_index"] == 0.0 
+        assert data["generations_to_convergence"] >= 1
 
     def test_run_optimization_tandem(self, client, auth_headers):
         """
@@ -44,6 +53,9 @@ class TestOptimizationEndpoint:
         data = response.json()
         assert len(data["optimal_radii_nm"]) == 2
         assert all(2.0 <= r <= 10.0 for r in data["optimal_radii_nm"])
+        assert len(data["bandgaps_eV"]) == 2
+        assert len(data["photon_harvesting_efficiency"]) == 2
+        assert data["current_mismatch_index"] >= 0.0
 
     def test_run_optimization_three_layers(self, client, auth_headers):
         """
@@ -56,6 +68,8 @@ class TestOptimizationEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert len(data["optimal_radii_nm"]) == 3
+        assert len(data["bandgaps_eV"]) == 3
+        assert len(data["photon_harvesting_efficiency"]) == 3
 
     def test_run_optimization_invalid_material(self, client, auth_headers):
         """
@@ -98,10 +112,23 @@ class TestOptimizationEndpoint:
 
         assert response.status_code == 401
 
+    def test_pce_always_gte_fitness(self, client, auth_headers):
+        """
+        Scenario: PCE must always be >= penalized fitness (fitness = PCE - CMI penalty).
+        Expected: projected_pce >= last fitness_history value.
+        """
+        payload = {**MINIMAL_PARAMS, "materials": ["CdSe", "PbS"]}
+        response = client.post("/optimization/run", json=payload, headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["projected_pce"] >= data["fitness_history"][-1] - 1e-5, \
+            "projected_pce (raw PCE) must be >= last penalized fitness"
+
     def test_response_simulation_id_is_unique(self, client, auth_headers):
         """
         Scenario: Run two optimizations back to back.
-        Expected: Each response has a different simulation_id.
+        Expected: Each response is independent and valid (simulation_id removed).
         """
         payload = {**MINIMAL_PARAMS, "materials": ["GaAs"]}
         r1 = client.post("/optimization/run", json=payload, headers=auth_headers)
@@ -109,7 +136,9 @@ class TestOptimizationEndpoint:
 
         assert r1.status_code == 200
         assert r2.status_code == 200
-        assert r1.json()["simulation_id"] != r2.json()["simulation_id"]
+        # Both independently valid
+        assert r1.json()["status"] == "COMPLETED"
+        assert r2.json()["status"] == "COMPLETED"
 
     def test_fitness_history_length_matches_iterations(self, client, auth_headers):
         """
@@ -129,7 +158,15 @@ class TestOptimizationEndpoint:
         """
         response = client.post(
             "/optimization/run",
-            json={"materials": ["CdSe"], "population_size": 5, "max_iterations": 2},
+            json={
+                "materials": ["CdSe"],
+                "population_size": 5,
+                "max_iterations": 2,
+                "wavelength_input_csv": False,
+                "wavelength_left_bound": 280.0,
+                "wavelength_right_bound": 860.0,
+                "wavelength_step": 20.0,
+            },
             headers=auth_headers
         )
 

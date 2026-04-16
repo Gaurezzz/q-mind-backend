@@ -1,8 +1,8 @@
 import pytest
 import numpy as np
 import mindspore as ms
-from logic.GeneticSolarOptimizer import GeneticSolarOptimizer
-from physics.BrusEngine import BrusEngine
+from modelarts_worker.logic.GeneticSolarOptimizer import GeneticSolarOptimizer
+from modelarts_worker.physics.BrusEngine import BrusEngine
 
 class TestGeneticSolarOptimizer:
     
@@ -56,29 +56,40 @@ class TestGeneticSolarOptimizer:
         optimizer, temperature, wavelengths = setup_optimizer
         
         # Run one generation
-        best_fitness, best_radii = optimizer(temperature, wavelengths)
+        best_fitness, best_pce, best_cmi, best_radii, best_absorption, best_avg_fitness = optimizer(temperature, wavelengths)
         
         # Validate outputs
         assert isinstance(best_fitness, ms.Tensor), "Fitness should be a Tensor"
+        assert isinstance(best_pce, ms.Tensor), "PCE should be a Tensor"
+        assert isinstance(best_cmi, ms.Tensor), "CMI should be a Tensor"
         assert isinstance(best_radii, ms.Tensor), "Radii should be a Tensor"
+        assert isinstance(best_absorption, ms.Tensor), "Absorption should be a Tensor"
+        assert isinstance(best_avg_fitness, ms.Tensor), "Avg fitness should be a Tensor"
         
         fitness_val = best_fitness.asnumpy().item()
+        pce_val = best_pce.asnumpy().item()
+        cmi_val = best_cmi.asnumpy().item()
         radii_np = best_radii.asnumpy()
+        avg_fitness_val = best_avg_fitness.asnumpy().item()
         
         assert not np.isnan(fitness_val), "Best fitness is NaN"
         assert not np.isinf(fitness_val), "Best fitness is Inf"
+        assert pce_val >= fitness_val - 1e-5, "PCE should be >= fitness (fitness = PCE - penalty)"
+        assert cmi_val >= 0.0, "CMI must be non-negative"
+        assert not np.isnan(avg_fitness_val), "Avg fitness is NaN"
+        assert avg_fitness_val <= fitness_val + 1e-5, "Avg fitness should be <= best fitness"
         assert radii_np.shape == (2,), f"Expected radii shape (2,), got {radii_np.shape}"
         assert np.all(radii_np >= 2.0) and np.all(radii_np <= 10.0), \
             f"Best radii out of bounds: {radii_np}"
         
-        print(f"Generation completed: fitness={fitness_val:.6f}, radii={radii_np}")
+        print(f"Generation completed: fitness={fitness_val:.6f}, pce={pce_val:.6f}, cmi={cmi_val:.6f}, radii={radii_np}")
     
     def test_elitism_preservation(self, setup_optimizer):
         """Validates that the best individual is preserved across generations."""
         optimizer, temperature, wavelengths = setup_optimizer
         
         # Run first generation
-        fitness1, radii1 = optimizer(temperature, wavelengths)
+        fitness1, _, _, radii1, _, _ = optimizer(temperature, wavelengths)
         fitness1_val = fitness1.asnumpy().item()
         radii1_np = radii1.asnumpy()
         
@@ -137,7 +148,7 @@ class TestGeneticSolarOptimizer:
         
         # Run 10 generations
         for gen in range(10):
-            best_fitness, _ = optimizer(temperature, wavelengths)
+            best_fitness, _, _, _, _, _ = optimizer(temperature, wavelengths)
             fitness_history.append(best_fitness.asnumpy().item())
         
         # Check if best fitness in last 3 generations >= initial fitness
@@ -218,7 +229,7 @@ class TestGeneticSolarOptimizer:
             temperature = ms.Tensor([300.0], ms.float32)
             wavelengths = ms.Tensor(np.arange(280, 2000, 20), ms.float32)
             
-            fitness, radii = optimizer(temperature, wavelengths)
+            fitness, _, _, radii = optimizer(temperature, wavelengths)[:4]
             
             assert radii.shape == (num_layers,), \
                 f"Expected radii shape ({num_layers},), got {radii.shape}"
