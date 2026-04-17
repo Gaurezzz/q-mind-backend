@@ -4,8 +4,7 @@ from mindspore import Tensor, dtype as mstype
 from mindspore.nn import Cell
 from pvlib import spectrum
 from mindspore import ops
-import mindspore_config
-from mindspore_config import get_logger
+from modelarts_worker.mindspore_config import get_logger
 
 logger = get_logger(__name__)
 

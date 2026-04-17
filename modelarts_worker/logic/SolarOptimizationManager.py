@@ -1,11 +1,10 @@
-import mindspore_config
-from mindspore_config import get_logger
+from modelarts_worker.mindspore_config import get_logger
 import math
 import pandas as pd
 import mindspore as ms
-from physics.BrusEngine import BrusEngine
-from physics.SolarPerformanceEvaluator import SolarPerformanceEvaluator
-from logic.GeneticSolarOptimizer import GeneticSolarOptimizer
+from modelarts_worker.physics.BrusEngine import BrusEngine
+from modelarts_worker.physics.SolarPerformanceEvaluator import SolarPerformanceEvaluator
+from modelarts_worker.logic.GeneticSolarOptimizer import GeneticSolarOptimizer
 from mindspore import ops as _ops
 
 logger = get_logger(__name__)
@@ -35,6 +34,7 @@ class SolarOptimizationManager:
         
         # Cache to store instantiated BrusEngine objects (prevents redundant allocations)
         self.engines_cache = {}
+        self.kappa = kappa
         # Evaluator instance used for post-study metrics (PHE). kappa is irrelevant here.
         self._evaluator = SolarPerformanceEvaluator(kappa=kappa)
 
@@ -150,7 +150,7 @@ class SolarOptimizationManager:
             num_layers=len(user_params['materials']),
             alpha=user_params['alpha'],
             mutation_strength=user_params['mutation'],
-            kappa=user_params['kappa']
+            kappa=user_params.get('kappa', self.kappa)
         )
 
         materials_str = ', '.join(user_params['materials'])
@@ -159,7 +159,7 @@ class SolarOptimizationManager:
             materials_str,
             user_params['pop_size'],
             user_params['iterations'],
-            user_params['kappa'],
+            user_params.get('kappa', self.kappa),
             float(user_params['temp'].asnumpy().flat[0]),
         )
 

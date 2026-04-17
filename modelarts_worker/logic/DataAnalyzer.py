@@ -1,9 +1,8 @@
-import mindspore_config as mindspore_config
 import numpy as np
 import mindspore as ms
 from typing import Any, Dict, List
 
-from logic.SolarOptimizationManager import SolarOptimizationManager
+from modelarts_worker.logic.SolarOptimizationManager import SolarOptimizationManager
 
 
 class DataAnalyzer:
@@ -35,17 +34,23 @@ class DataAnalyzer:
         """Returns the subset of materials that are not in the catalog."""
         return [m for m in materials if m not in self.manager.catalog]
 
-    def _build_wavelengths(self, request: Dict[str, Any]) -> np.ndarray:
+    def _build_wavelengths(self, request) -> np.ndarray:
         """
-        Converts the wavelength specification in the request dict to a float32 numpy array.
+        Converts the wavelength specification in the request to a float32 numpy array.
+        Accepts an OptimizationRequest (Pydantic model) or a plain dict.
         """
-        if not request.get("wavelength_input_csv", False):
-            return np.arange(
-                request.get("wavelength_left_bound", 280.0),
-                request.get("wavelength_right_bound", 2500.0),
-                request.get("wavelength_step", 10.0),
-                dtype=np.float32,
-            )
+        if isinstance(request, dict):
+            csv_mode = request.get("wavelength_input_csv", False)
+            left     = request.get("wavelength_left_bound", 280.0)
+            right    = request.get("wavelength_right_bound", 2500.0)
+            step     = request.get("wavelength_step", 10.0)
+        else:
+            csv_mode = request.wavelength_input_csv
+            left     = request.wavelength_left_bound
+            right    = request.wavelength_right_bound
+            step     = request.wavelength_step
+        if not csv_mode:
+            return np.arange(left, right, step, dtype=np.float32)
         raise NotImplementedError(
             "CSV wavelength input is not yet supported. "
             "Please use the automatic range mode."
@@ -64,28 +69,34 @@ class DataAnalyzer:
                 return i + 1
         return len(fitness_history)
 
-    def analyze(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    def analyze(self, request) -> Dict[str, Any]:
         """
         Args:
-            request (Dict[str, Any]): Validated incoming request parameters as a dictionary.
+            request: Validated incoming request — either an OptimizationRequest Pydantic
+                model or a plain dict with equivalent keys.
 
         Returns:
             dict: All fields required for the final response except
             status and computation_time_ms.
         """
+        if isinstance(request, dict):
+            get = lambda key, default=None: request.get(key, default)
+        else:
+            get = lambda key, default=None: getattr(request, key, default)
+
         wavelengths_np = self._build_wavelengths(request)
-        temp_tensor = ms.Tensor([request.get("operating_temperature", 298.15)], ms.float32)
+        temp_tensor = ms.Tensor([get("operating_temperature", 298.15)], ms.float32)
         wl_tensor = ms.Tensor(wavelengths_np, ms.float32)
-        
-        materials = request.get("materials", [])
+
+        materials = get("materials", [])
 
         user_params = {
             "materials":  materials,
-            "pop_size":   request.get("population_size", 100),
-            "alpha":      request.get("crossover_alpha", 0.5),
-            "mutation":   request.get("mutation_strength", 0.1),
-            "iterations": request.get("max_iterations", 50),
-            "kappa":      request.get("kappa", 0.5),
+            "pop_size":   get("population_size", 100),
+            "alpha":      get("crossover_alpha", 0.5),
+            "mutation":   get("mutation_strength", 0.1),
+            "iterations": get("max_iterations", 50),
+            "kappa":      get("kappa", 0.5),
             "temp":       temp_tensor,
             "wavelength": wl_tensor,
         }

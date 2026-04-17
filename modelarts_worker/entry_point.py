@@ -3,9 +3,8 @@ import json
 import os
 import moxing as mox
 
-import mindspore_config
-from mindspore_config import get_logger
-from logic.DataAnalyzer import DataAnalyzer
+from modelarts_worker.mindspore_config import get_logger
+from modelarts_worker.logic.DataAnalyzer import DataAnalyzer
 
 logger = get_logger("entry_point")
 

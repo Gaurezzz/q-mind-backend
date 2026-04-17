@@ -1,9 +1,8 @@
-import mindspore_config
-from mindspore_config import get_logger
+from modelarts_worker.mindspore_config import get_logger
 from mindspore.nn import Cell
 from mindspore import ops, Tensor, dtype
-from physics.SolarPerformanceEvaluator import SolarPerformanceEvaluator
-from physics.BrusEngine import BrusEngine
+from modelarts_worker.physics.SolarPerformanceEvaluator import SolarPerformanceEvaluator
+from modelarts_worker.physics.BrusEngine import BrusEngine
 import mindspore as ms
 from typing import List, Tuple
 

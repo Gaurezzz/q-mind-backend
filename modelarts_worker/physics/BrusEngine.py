@@ -1,5 +1,4 @@
-import mindspore_config
-from mindspore_config import get_logger
+from modelarts_worker.mindspore_config import get_logger
 import mindspore as ms
 from mindspore.nn import Cell
 from mindspore import ops
